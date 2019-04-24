@@ -106,7 +106,7 @@ public abstract class AbstractSSOService implements SSOService {
     }
   }
 
-  String getLoginPageUrl() {
+  public String getLoginPageUrl() {
     return loginPageUrl;
   }
 

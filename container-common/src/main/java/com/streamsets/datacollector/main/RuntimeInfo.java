@@ -21,6 +21,7 @@ import com.streamsets.datacollector.http.WebServerTask;
 import com.streamsets.datacollector.util.AuthzRole;
 import com.streamsets.datacollector.util.Configuration;
 import com.streamsets.lib.security.http.RemoteSSOService;
+import com.streamsets.lib.security.http.oidc.OIDCService;
 import com.streamsets.pipeline.api.impl.Utils;
 
 import org.apache.commons.lang3.StringUtils;
@@ -63,6 +64,7 @@ public abstract class RuntimeInfo {
   public static final boolean PIPELINE_ACCESS_CONTROL_ENABLED_DEFAULT = false;
 
   private boolean DPMEnabled;
+  private boolean OIDCEnabled;
   private boolean aclEnabled;
   private boolean remoteSsoDisabled;
   private String deploymentId;
@@ -292,6 +294,14 @@ public abstract class RuntimeInfo {
   public boolean isDPMEnabled() {
     return DPMEnabled;
   }
+  
+  public boolean isOIDCEnabled() {
+    return OIDCEnabled;
+  }
+  
+  public void setOIDCEnabled(boolean OIDCEnabled) {
+    this.OIDCEnabled = OIDCEnabled;
+  }
 
   public boolean isAclEnabled() {
     return aclEnabled;
@@ -320,6 +330,8 @@ public abstract class RuntimeInfo {
         runtimeInfo.setAppAuthToken(appAuthToken);
         boolean isDPMEnabled = conf.get(RemoteSSOService.DPM_ENABLED, RemoteSSOService.DPM_ENABLED_DEFAULT);
         runtimeInfo.setDPMEnabled(isDPMEnabled);
+        boolean isOIDCEnabled = conf.get(OIDCService.OIDC_ENABLED, OIDCService.OIDC_ENABLED_DEFAULT);
+        runtimeInfo.setOIDCEnabled(isOIDCEnabled);
         boolean skipSsoService = conf.get(
             RemoteSSOService.SECURITY_SERVICE_REMOTE_SSO_DISABLED_CONFIG,
             RemoteSSOService.SECURITY_SERVICE_REMOTE_SSO_DISABLED_DEFAULT
@@ -329,7 +341,7 @@ public abstract class RuntimeInfo {
         runtimeInfo.setDeploymentId(deploymentId);
         boolean aclEnabled = conf.get(PIPELINE_ACCESS_CONTROL_ENABLED, PIPELINE_ACCESS_CONTROL_ENABLED_DEFAULT);
         String auth = conf.get(WebServerTask.AUTHENTICATION_KEY, WebServerTask.AUTHENTICATION_DEFAULT);
-        if (aclEnabled && (!"none".equals(auth) || isDPMEnabled)) {
+        if (aclEnabled && (!"none".equals(auth) || isDPMEnabled || isOIDCEnabled)) {
           runtimeInfo.setAclEnabled(true);
         } else {
           runtimeInfo.setAclEnabled(false);

@@ -53,7 +53,7 @@ public class BaseCommand implements Runnable {
     type = OptionType.GLOBAL,
     name = {"-a", "--auth-type"},
     description = "Data Collector Authentication Type",
-    allowedValues = {"none", "basic", "digest", "form", "dpm"},
+    allowedValues = {"none", "basic", "digest", "form", "dpm", "oidc"},
     required = false
   )
   public String sdcAuthType;
@@ -72,6 +72,14 @@ public class BaseCommand implements Runnable {
       required = false
   )
   public String dpmURL;
+  
+  @Option(
+      type = OptionType.GLOBAL,
+      name = {"-O", "--oidcURL"},
+      description = "OIDC URL",
+      required = false
+  )
+  public String oidcURL;
 
   @Override
   public void run() {

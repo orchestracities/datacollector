@@ -39,6 +39,8 @@ angular.module('dataCollectorApp.common')
     var SUPPORT_BUNDLE_ENABLED = 'bundle.upload.enabled';
     var DPM_LABELS ='dpm.remote.control.job.labels';
     var PIPELINE_ACCESS_CONTROL_ENABLED = 'pipeline.access.control.enabled';
+    var OIDC_ENABLED = 'oidc.enabled';
+    var OIDC_AUTHORIZATION_URL = 'oidc.authorizationEndpoint';
 
     this.initializeDefer = undefined;
     this.config = undefined;
@@ -264,6 +266,28 @@ angular.module('dataCollectorApp.common')
       }
       return false;
     };
+    
+    /*
+     * Returns oidc.enabled flag value
+     * @returns {*}
+     */
+    this.isOIDCEnabled = function() {
+      if (self.config && self.config[OIDC_ENABLED] !== undefined) {
+        return self.config[OIDC_ENABLED] === 'true';
+      }
+      return false;
+    };
+    
+    /**
+     * Returns oidc.authorizationEndpoint config value
+     * @returns {*}
+     */
+    this.getRemoteBaseUrl = function() {
+      if (self.config) {
+        return self.config[OIDC_AUTHORIZATION_URL];
+      }
+      return '';
+    };
 
     /*
      * Returns dpm.remote.control.job.labels configuration value
@@ -305,7 +329,7 @@ angular.module('dataCollectorApp.common')
     this.isACLEnabled = function() {
       if (self.config && self.config[PIPELINE_ACCESS_CONTROL_ENABLED] !== undefined) {
         return self.config[PIPELINE_ACCESS_CONTROL_ENABLED] === 'true' &&
-          (self.config[HTTP_AUTHENTICATION] !== 'none' || this.isDPMEnabled());
+          (self.config[HTTP_AUTHENTICATION] !== 'none' || this.isDPMEnabled() || this.isOIDCEnabled());
       }
       return true;
     };

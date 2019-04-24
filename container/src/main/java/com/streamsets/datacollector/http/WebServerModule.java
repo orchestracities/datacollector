@@ -264,7 +264,7 @@ public class WebServerModule {
       @Override
       public void init(ServletContextHandler context) {
         if (configuration.get(WebServerTask.AUTHENTICATION_KEY, WebServerTask.AUTHENTICATION_DEFAULT).equals("none") &&
-            !runtimeInfo.isDPMEnabled()) {
+            !runtimeInfo.isDPMEnabled() &&  !runtimeInfo.isOIDCEnabled()) {
           FilterHolder filter = new FilterHolder(new AlwaysAllRolesFilter());
           context.addFilter(filter, "/*", EnumSet.of(DispatcherType.REQUEST));
         }

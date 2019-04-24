@@ -19,6 +19,8 @@ import com.streamsets.datacollector.client.auth.Authentication;
 import com.streamsets.datacollector.client.auth.HttpBasicAuth;
 import com.streamsets.datacollector.client.auth.HttpDPMAuth;
 import com.streamsets.datacollector.client.auth.HttpDigestAuth;
+import com.streamsets.datacollector.client.auth.HttpOIDCAuth;
+
 import org.glassfish.jersey.client.ClientConfig;
 import org.glassfish.jersey.client.ClientProperties;
 import org.glassfish.jersey.client.filter.CsrfProtectionFilter;
@@ -88,6 +90,9 @@ public class ApiClient {
         break;
       case "dpm":
         authentication = new HttpDPMAuth();
+        break;
+      case "oidc":
+        authentication = new HttpOIDCAuth();
         break;
       default:
         authentication = null;

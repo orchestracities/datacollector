@@ -37,6 +37,8 @@ import com.streamsets.lib.security.http.SSOAuthenticator;
 import com.streamsets.lib.security.http.SSOConstants;
 import com.streamsets.lib.security.http.SSOService;
 import com.streamsets.lib.security.http.SSOUtils;
+import com.streamsets.lib.security.http.oidc.OIDCAuthenticator;
+import com.streamsets.lib.security.http.oidc.OIDCService;
 import com.streamsets.pipeline.api.impl.Utils;
 import com.streamsets.lib.security.http.LimitedMethodServer;
 import org.eclipse.jetty.alpn.server.ALPNServerConnectionFactory;
@@ -415,8 +417,11 @@ public abstract class WebServerTask extends AbstractTask implements Registration
     ConstraintSecurityHandler securityHandler;
     String auth = conf.get(AUTHENTICATION_KEY, AUTHENTICATION_DEFAULT);
     boolean isDPMEnabled = runtimeInfo.isDPMEnabled();
+    boolean isOIDCEnabled = runtimeInfo.isOIDCEnabled();
     if (isDPMEnabled && !runtimeInfo.isRemoteSsoDisabled()) {
       securityHandler = configureSSO(appConf, appHandler, appContext);
+    } else if (isOIDCEnabled && !runtimeInfo.isRemoteSsoDisabled()) {
+      securityHandler = configureOIDC(appConf, appHandler, appContext);
     } else {
       switch (auth) {
         case "none":
@@ -492,6 +497,13 @@ public abstract class WebServerTask extends AbstractTask implements Registration
     remoteSsoService.setRegistrationResponseDelegate(this);
     return remoteSsoService;
   }
+  
+  protected OIDCService createOIDCService(Configuration appConf) {
+  	OIDCService oidcService = new OIDCService();
+    oidcService.setConfiguration(appConf);
+    oidcService.setRegistrationResponseDelegate(this);
+    return oidcService;
+  }
 
   protected boolean isDisconnectedSSOModeEnabled() {
     return false;
@@ -546,6 +558,26 @@ public abstract class WebServerTask extends AbstractTask implements Registration
     return security;
   }
 
+  @SuppressWarnings("unchecked")
+  private ConstraintSecurityHandler configureOIDC(
+      final Configuration appConf, ServletContextHandler appHandler, final String appContext
+  ) {
+    final String componentId = getComponentId(appConf);
+
+    LOG.debug("Initializing OIDC componentId '{}'", componentId);
+    ConstraintSecurityHandler security = new ConstraintSecurityHandler();
+
+    final OIDCService oidcService = createOIDCService(appConf);
+
+    SSOService proxySsoService = new ProxySSOService(oidcService);
+
+    // registering ssoService with runtime, to enable cache flushing
+    ((List)getRuntimeInfo().getAttribute(SSO_SERVICES_ATTR)).add(proxySsoService);
+    appHandler.getServletContext().setAttribute(SSOService.SSO_SERVICE_KEY, proxySsoService);
+    security.setAuthenticator(injectActivationCheck(new OIDCAuthenticator(appContext, proxySsoService, appConf)));
+    return security;
+  }
+  
   protected Authenticator injectActivationCheck(Authenticator authenticator) {
     return (activation == null) ? authenticator : new ActivationAuthenticator(authenticator, activation);
   }

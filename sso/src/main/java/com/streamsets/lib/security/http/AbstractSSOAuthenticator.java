@@ -71,7 +71,7 @@ public abstract class AbstractSSOAuthenticator implements Authenticator {
     return true;
   }
 
-  String getRequestInfoForLogging(HttpServletRequest request, String principalId) {
+  protected String getRequestInfoForLogging(HttpServletRequest request, String principalId) {
     StringBuffer requestUrl = request.getRequestURL();
     if (request.getQueryString() != null) {
       requestUrl.append("?<QUERY_STRING>");
