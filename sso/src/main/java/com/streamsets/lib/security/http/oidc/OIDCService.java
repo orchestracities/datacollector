@@ -31,6 +31,7 @@ import java.io.UnsupportedEncodingException;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLEncoder;
+import java.util.HashMap;
 import java.util.Map;
 
 public class OIDCService extends AbstractSSOService {
@@ -412,6 +413,11 @@ public class OIDCService extends AbstractSSOService {
 			LOG.warn("Could not do user token validation, going inactive: {}", ex.toString());
 			serviceActive = false;
 			throw new RuntimeException(Utils.format("Could not connect to security service: {}", ex), ex);
+		}
+		if(!principal.isActive()) {
+			Map<String,String> errorInfo = new HashMap<String,String>();
+			errorInfo.put("error", Utils.format("Could not validate user token '{}'", userAuthToken));
+			throw new ForbiddenException(errorInfo);
 		}
 		if (principal != null) {
 			principal.setTokenStr(userAuthToken);
