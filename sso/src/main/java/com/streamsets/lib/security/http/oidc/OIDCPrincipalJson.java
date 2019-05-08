@@ -31,7 +31,8 @@ import java.util.Set;
 //TODO add support for groups
 @SuppressWarnings("squid:S1845")
 public class OIDCPrincipalJson implements SSOPrincipal {
-  private String tokenStr;
+	@JsonProperty("access_token")
+	private String tokenStr;
   @JsonProperty("iss")
   private String issuerUrl;
   @JsonProperty("exp")
@@ -44,7 +45,6 @@ public class OIDCPrincipalJson implements SSOPrincipal {
   private String organizationName;
   private String email;
   private boolean active; 
-  @JsonProperty("scopes")
   private Set<String> roles = new HashSet<>();
   private Set<String> groups = new HashSet<>();
   private boolean app;

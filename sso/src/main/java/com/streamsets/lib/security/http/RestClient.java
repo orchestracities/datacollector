@@ -20,9 +20,12 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
 
+import java.io.BufferedInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.OutputStreamWriter;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLEncoder;
@@ -31,6 +34,8 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
+import org.apache.commons.io.IOUtils;
 
 /**
  * A REST Client with minimal dependencies (JDK & JACKSON -for JSON- )
@@ -349,8 +354,17 @@ public class RestClient {
         try(OutputStream outputStream = conn.getOutputStream()) {
           jsonMapper.writeValue(outputStream, upload);
         }
+      } else if (upload instanceof StringBuilder) {
+        try(OutputStream outputStream = conn.getOutputStream()) {
+        	OutputStreamWriter osw = new OutputStreamWriter(outputStream, "UTF-8");    
+        	osw.write(((StringBuilder)upload).toString());
+        	osw.flush();
+        	osw.close();
+        	outputStream.close();  //don't forget to close the OutputStream
+        	conn.connect();
+        }
       } else {
-        throw new IllegalStateException("Content type is not JSON, cannot upload data bean");
+      	throw new IllegalStateException("Content type is not JSON, cannot upload data bean");
       }
     }
     return new Response(jsonMapper, conn);

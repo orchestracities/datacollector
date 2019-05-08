@@ -120,7 +120,7 @@ public class TestOIDCService {
     RestClient restClient = Mockito.mock(RestClient.class);
     RestClient.Builder builder = Mockito.mock(RestClient.Builder.class);
     Mockito.doReturn(restClient).when(builder).build();
-    Mockito.doReturn(builder).when(service).getUserAuthClientBuilder();
+    Mockito.doReturn(builder).when(service).getTokenValidationClientBuilder();
     Mockito.doReturn(builder).when(builder).header("Content-Type", "application/x-www-form-urlencoded");
     Mockito.doReturn(response).when(restClient).post(Mockito.any());
 
@@ -138,7 +138,104 @@ public class TestOIDCService {
     Assert.assertNull(service.validateUserTokenWithSecurityService("foo"));
   }
 
+  @Test
+  public void testObtainTokenFromUserPassword() throws Exception {
+    Configuration conf = new Configuration();
+/*    conf.set(OIDCService.OIDC_AUTHORIZATION_URL_CONFIG, "http://foo/auth");
+    conf.set(OIDCService.OIDC_END_SESSION_URL_CONFIG, "http://foo/logout");
+    conf.set(OIDCService.OIDC_TOKEN_URL_CONFIG, "http://foo/token");
+    conf.set(OIDCService.OIDC_TOKEN_INTROSPECTION_URL_CONFIG, "http://foo/introspection");
+    conf.set(OIDCService.OIDC_USER_INFO_URL_CONFIG, "http://foo/user");
+    conf.set(OIDCService.SECURITY_CLIENT_ID_CONFIG, "client");
+    conf.set(OIDCService.SECURITY_CLIENT_SECRET_CONFIG, "secret");*/
+    conf.set(OIDCService.OIDC_AUTHORIZATION_URL_CONFIG, "https://auth.s.orchestracities.com/auth/realms/default/protocol/openid-connect/auth");
+    conf.set(OIDCService.OIDC_END_SESSION_URL_CONFIG, "http://foo/logout");
+    conf.set(OIDCService.OIDC_TOKEN_URL_CONFIG, "https://auth.s.orchestracities.com/auth/realms/default/protocol/openid-connect/token");
+    conf.set(OIDCService.OIDC_TOKEN_INTROSPECTION_URL_CONFIG, "http://foo/introspection");
+    conf.set(OIDCService.OIDC_USER_INFO_URL_CONFIG, "http://foo/user");
+    conf.set(OIDCService.SECURITY_CLIENT_ID_CONFIG, "testoidc");
+    conf.set(OIDCService.SECURITY_CLIENT_SECRET_CONFIG, "3a740096-57ee-4cea-ae0f-f2b6a600b511");
+    
+    OIDCService service = Mockito.spy(new OIDCService());
+    service.setConfiguration(conf);
+    
+    service.obtainTokenFromPassword("developer@orchestracities.com", "developer2019");
+    
+    Mockito.doReturn(true).when(service).checkServiceActive();
 
+    OIDCPrincipalJson principal = TestOIDCPrincipalJson.createPrincipal();
+
+    RestClient.Response response = Mockito.mock(RestClient.Response.class);
+    RestClient restClient = Mockito.mock(RestClient.class);
+    RestClient.Builder builder = Mockito.mock(RestClient.Builder.class);
+    Mockito.doReturn(restClient).when(builder).build();
+    Mockito.doReturn(builder).when(service).getTokenValidationClientBuilder();
+    Mockito.doReturn(builder).when(builder).header("Content-Type", "application/x-www-form-urlencoded");
+    Mockito.doReturn(response).when(restClient).post(Mockito.any());
+
+    // valid token
+    Mockito.when(response.getStatus()).thenReturn(HttpURLConnection.HTTP_OK);
+    Mockito.when(response.getData(Mockito.eq( OIDCPrincipalJson.class))).thenReturn(principal);
+
+    Assert.assertEquals(principal, service.validateAppTokenWithSecurityService("foo", "client"));
+    Assert.assertEquals("foo", principal.getTokenStr());
+
+    // invalid token
+
+    Mockito.when(response.getData(Mockito.eq(OIDCPrincipalJson.class))).thenReturn(null);
+
+    Assert.assertNull(service.validateAppTokenWithSecurityService("foo", "client"));
+  }
+  
+  @Test
+  public void testObtainTokenFromCode() throws Exception {
+    Configuration conf = new Configuration();
+/*    conf.set(OIDCService.OIDC_AUTHORIZATION_URL_CONFIG, "http://foo/auth");
+    conf.set(OIDCService.OIDC_END_SESSION_URL_CONFIG, "http://foo/logout");
+    conf.set(OIDCService.OIDC_TOKEN_URL_CONFIG, "http://foo/token");
+    conf.set(OIDCService.OIDC_TOKEN_INTROSPECTION_URL_CONFIG, "http://foo/introspection");
+    conf.set(OIDCService.OIDC_USER_INFO_URL_CONFIG, "http://foo/user");
+    conf.set(OIDCService.SECURITY_CLIENT_ID_CONFIG, "client");
+    conf.set(OIDCService.SECURITY_CLIENT_SECRET_CONFIG, "secret");*/
+    conf.set(OIDCService.OIDC_AUTHORIZATION_URL_CONFIG, "https://auth.s.orchestracities.com/auth/realms/default/protocol/openid-connect/auth");
+    conf.set(OIDCService.OIDC_END_SESSION_URL_CONFIG, "http://foo/logout");
+    conf.set(OIDCService.OIDC_TOKEN_URL_CONFIG, "https://auth.s.orchestracities.com/auth/realms/default/protocol/openid-connect/token");
+    conf.set(OIDCService.OIDC_TOKEN_INTROSPECTION_URL_CONFIG, "http://foo/introspection");
+    conf.set(OIDCService.OIDC_USER_INFO_URL_CONFIG, "http://foo/user");
+    conf.set(OIDCService.SECURITY_CLIENT_ID_CONFIG, "testoidc");
+    conf.set(OIDCService.SECURITY_CLIENT_SECRET_CONFIG, "3a740096-57ee-4cea-ae0f-f2b6a600b511");
+    
+    OIDCService service = Mockito.spy(new OIDCService());
+    service.setConfiguration(conf);
+
+    
+    service.obtainTokenFromCode("47cfa74b-7245-48f7-b5d9-7c497d0cd00c.bcccd3f0-b471-4c96-bfd2-3d240c0bfeaf.a9734230-60c0-46f3-a754-6bd36992b269", service.getLoginPageUrl());
+    
+    Mockito.doReturn(true).when(service).checkServiceActive();
+
+    OIDCPrincipalJson principal = TestOIDCPrincipalJson.createPrincipal();
+
+    RestClient.Response response = Mockito.mock(RestClient.Response.class);
+    RestClient restClient = Mockito.mock(RestClient.class);
+    RestClient.Builder builder = Mockito.mock(RestClient.Builder.class);
+    Mockito.doReturn(restClient).when(builder).build();
+    Mockito.doReturn(builder).when(service).getTokenValidationClientBuilder();
+    Mockito.doReturn(builder).when(builder).header("Content-Type", "application/x-www-form-urlencoded");
+    Mockito.doReturn(response).when(restClient).post(Mockito.any());
+
+    // valid token
+    Mockito.when(response.getStatus()).thenReturn(HttpURLConnection.HTTP_OK);
+    Mockito.when(response.getData(Mockito.eq( OIDCPrincipalJson.class))).thenReturn(principal);
+
+    Assert.assertEquals(principal, service.validateAppTokenWithSecurityService("foo", "client"));
+    Assert.assertEquals("foo", principal.getTokenStr());
+
+    // invalid token
+
+    Mockito.when(response.getData(Mockito.eq(OIDCPrincipalJson.class))).thenReturn(null);
+
+    Assert.assertNull(service.validateAppTokenWithSecurityService("foo", "client"));
+  }
   
   @Test
   public void testValidateAppTokenWithSecurityService() throws Exception {
@@ -161,7 +258,7 @@ public class TestOIDCService {
     RestClient restClient = Mockito.mock(RestClient.class);
     RestClient.Builder builder = Mockito.mock(RestClient.Builder.class);
     Mockito.doReturn(restClient).when(builder).build();
-    Mockito.doReturn(builder).when(service).getAppAuthClientBuilder();
+    Mockito.doReturn(builder).when(service).getTokenValidationClientBuilder();
     Mockito.doReturn(builder).when(builder).header("Content-Type", "application/x-www-form-urlencoded");
     Mockito.doReturn(response).when(restClient).post(Mockito.any());
 

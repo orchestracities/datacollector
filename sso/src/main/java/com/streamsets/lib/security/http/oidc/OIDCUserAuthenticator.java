@@ -22,7 +22,6 @@ import com.streamsets.datacollector.util.Configuration;
 import com.streamsets.lib.security.http.AbstractSSOAuthenticator;
 import com.streamsets.lib.security.http.CORSConstants;
 import com.streamsets.lib.security.http.ForbiddenException;
-import com.streamsets.lib.security.http.RemoteSSOService;
 import com.streamsets.lib.security.http.SSOAuthenticationUser;
 import com.streamsets.lib.security.http.SSOConstants;
 import com.streamsets.lib.security.http.SSOPrincipal;
@@ -258,6 +257,16 @@ public class OIDCUserAuthenticator extends AbstractSSOAuthenticator {
     }
     return authToken;
   }
+  
+  String generateAuthTokenFromRequest(HttpServletRequest httpReq) {
+    String code = httpReq.getParameter(OIDCService.CODE_URL_PARAM);
+    String redirect_uri = httpReq.getRequestURL().toString();
+    String authToken = null;
+    if (code != null) {
+      authToken = ((OIDCService)(getSsoService().getDelegateTo())).obtainTokenFromCode(code, redirect_uri);
+    }
+    return authToken;
+  }
 
   @Override
   public Authentication validateRequest(ServletRequest request, ServletResponse response, boolean mandatory)
@@ -265,6 +274,10 @@ public class OIDCUserAuthenticator extends AbstractSSOAuthenticator {
     HttpServletRequest httpReq = (HttpServletRequest) request;
     HttpServletResponse httpRes = (HttpServletResponse) response;
     String authToken = getAuthTokenFromRequest(httpReq);
+    
+    if (authToken == null){
+    	authToken = generateAuthTokenFromRequest(httpReq);
+    }
 
     Authentication ret = null;
 

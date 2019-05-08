@@ -54,14 +54,15 @@ public class OIDCService extends AbstractSSOService {
 	public static final String REQUESTED_URL_PARAM = "redirect_uri";
 	public static final String CLIENTID_URL_PARAM = "client_id";
 	public static final String SCOPE_URL_PARAM = "scope";
-	public static final String OIDC_DEFAULT_SCOPE = "profile oidc";
+	public static final String OIDC_DEFAULT_SCOPE = "oidc";
 	public static final String RESPONSE_TYPE_URL_PARAM = "response_type";
-	public static final String OIDC_DEFAULT_RESPONSE_TYPE = "token";
+	public static final String OIDC_DEFAULT_RESPONSE_TYPE = "code";
+	public static final String CODE_URL_PARAM = "code";
 	
 	
 	RestClient.Builder discoveryClientBuilder;
-	RestClient.Builder userAuthClientBuilder;
-	RestClient.Builder appAuthClientBuilder;
+	RestClient.Builder tokenValidationClientBuilder;
+	RestClient.Builder authClientBuilder;
 	private String clientId;
 	private String clientSecret;
 	private String discoveryUrl;
@@ -125,11 +126,11 @@ public class OIDCService extends AbstractSSOService {
 
 		connTimeout = conf.get(SECURITY_SERVICE_CONNECTION_TIMEOUT_CONFIG, DEFAULT_SECURITY_SERVICE_CONNECTION_TIMEOUT);
 
-		userAuthClientBuilder = RestClient.builder(tokenIntrospectionEndpoint)
+		tokenValidationClientBuilder = RestClient.builder(tokenIntrospectionEndpoint)
 				.csrf(true)
 				.json(true)
 				.timeout(connTimeout);
-		appAuthClientBuilder = RestClient.builder(tokenIntrospectionEndpoint)
+		authClientBuilder = RestClient.builder(tokenEndpoint)
 				.csrf(true)
 				.json(true)
 				.timeout(connTimeout); 
@@ -141,13 +142,13 @@ public class OIDCService extends AbstractSSOService {
 	}
 
 	@VisibleForTesting
-	public RestClient.Builder getUserAuthClientBuilder() {
-		return userAuthClientBuilder;
+	public RestClient.Builder getTokenValidationClientBuilder() {
+		return tokenValidationClientBuilder;
 	}
 	
 	@VisibleForTesting
-	public RestClient.Builder getAppAuthClientBuilder() {
-		return appAuthClientBuilder;
+	public RestClient.Builder getAuthClientBuilder() {
+		return authClientBuilder;
 	}
 
 	@VisibleForTesting
@@ -174,7 +175,7 @@ public class OIDCService extends AbstractSSOService {
 			httpURLConnection.setConnectTimeout(connTimeout);
 			httpURLConnection.setReadTimeout(connTimeout);
 			int status = httpURLConnection.getResponseCode();
-			active = status == HttpURLConnection.HTTP_OK;
+			active = (status == HttpURLConnection.HTTP_OK || status == HttpURLConnection.HTTP_BAD_REQUEST);
 			if (!active) {
 				LOG.warn("OIDC reachable but returning '{}' HTTP status on login", status);
 			}
@@ -226,26 +227,167 @@ public class OIDCService extends AbstractSSOService {
 		return serviceActive;
 	}
 
-	protected SSOPrincipal validateUserTokenWithSecurityService(String userAuthToken) throws ForbiddenException {
-		Utils.checkState(checkServiceActiveIfInActive(), "Security service not active");
-		StringBuilder tokenValidationRequest = new StringBuilder();
+	protected String obtainTokenFromPassword(String username, String password) {
+		StringBuilder authRequest = new StringBuilder();
 		try {
-			tokenValidationRequest.append(URLEncoder.encode("token", "UTF-8"))
+			authRequest.append(URLEncoder.encode("grant_type", "UTF-8"))
 				.append("=")
-				.append(URLEncoder.encode(userAuthToken, "UTF-8"));
+				.append(URLEncoder.encode("password", "UTF-8"))
+				.append("&")
+				.append(URLEncoder.encode("username", "UTF-8"))
+				.append("=")
+				.append(URLEncoder.encode(username, "UTF-8"))
+				.append("&")
+				.append(URLEncoder.encode("password", "UTF-8"))
+				.append("=")
+				.append(URLEncoder.encode(password, "UTF-8"));
 			if (clientId != null) {
-				tokenValidationRequest.append("&")
+				authRequest.append("&")
 				.append(URLEncoder.encode("client_id", "UTF-8"))
 				.append("=")
 				.append(URLEncoder.encode(clientId, "UTF-8"));	
 				if (clientSecret != null) {
-					tokenValidationRequest.append("&")
+					authRequest.append("&")
 					.append(URLEncoder.encode("client_secret", "UTF-8"))
 					.append("=")
 					.append(URLEncoder.encode(clientSecret, "UTF-8"));
 				}
 			}
+			if ( OIDC_DEFAULT_SCOPE != null)
+				authRequest.append("&")
+				.append(URLEncoder.encode("scope", "UTF-8"))
+				.append("=")
+				.append(URLEncoder.encode(OIDC_DEFAULT_SCOPE, "UTF-8"));
+		} catch (UnsupportedEncodingException e) {
+			throw new RuntimeException(
+					Utils.format("Could not obtain valid token message: {}", e.getMessage())
+					);
+		}
+		return obtainToken(authRequest);
+	}
+	
+	protected String obtainTokenFromCode(String code, String redirect_uri) {
+		StringBuilder authRequest = new StringBuilder();
+		try {
+			authRequest.append(URLEncoder.encode("grant_type", "UTF-8"))
+				.append("=")
+				.append(URLEncoder.encode("authorization_code", "UTF-8"))
+				.append("&")
+				.append(URLEncoder.encode("code", "UTF-8"))
+				.append("=")
+				.append(URLEncoder.encode(code, "UTF-8"));
+		  if (redirect_uri != null)
+				authRequest.append("&")
+				.append(URLEncoder.encode("redirect_uri", "UTF-8"))
+				.append("=")
+				.append(URLEncoder.encode(redirect_uri, "UTF-8"));
+			if (clientId != null) {
+				authRequest.append("&")
+				.append(URLEncoder.encode("client_id", "UTF-8"))
+				.append("=")
+				.append(URLEncoder.encode(clientId, "UTF-8"));	
+				if (clientSecret != null)
+					authRequest.append("&")
+					.append(URLEncoder.encode("client_secret", "UTF-8"))
+					.append("=")
+					.append(URLEncoder.encode(clientSecret, "UTF-8"));
+			}
+		  if ( OIDC_DEFAULT_SCOPE != null)
+				authRequest.append("&")
+				.append(URLEncoder.encode("scope", "UTF-8"))
+				.append("=")
+				.append(URLEncoder.encode(OIDC_DEFAULT_SCOPE, "UTF-8"));
+		} catch (UnsupportedEncodingException e) {
+			throw new RuntimeException(
+					Utils.format("Could not obtain valid token message: {}", e.getMessage())
+					);
+		}
+		return obtainToken(authRequest);
+	}
+	
+	protected String obtainTokenFromRefreshToken(String token) {
+		StringBuilder authRequest = new StringBuilder();
+		try {
+			authRequest.append(URLEncoder.encode("grant_type", "UTF-8"))
+				.append("=")
+				.append(URLEncoder.encode("refresh_token", "UTF-8"))
+				.append("&")
+				.append(URLEncoder.encode("refresh_token", "UTF-8"))
+				.append("=")
+				.append(URLEncoder.encode(token, "UTF-8"));
+			if (clientId != null) {
+				authRequest.append("&")
+				.append(URLEncoder.encode("client_id", "UTF-8"))
+				.append("=")
+				.append(URLEncoder.encode(clientId, "UTF-8"));	
+				if (clientSecret != null) {
+					authRequest.append("&")
+					.append(URLEncoder.encode("client_secret", "UTF-8"))
+					.append("=")
+					.append(URLEncoder.encode(clientSecret, "UTF-8"));
+				}
+			}
+			if ( OIDC_DEFAULT_SCOPE != null)
+				authRequest.append("&")
+				.append(URLEncoder.encode("scope", "UTF-8"))
+				.append("=")
+				.append(URLEncoder.encode(OIDC_DEFAULT_SCOPE, "UTF-8"));
 			
+		} catch (UnsupportedEncodingException e) {
+			throw new RuntimeException(
+					Utils.format("Could not obtain valid token message: {}", e.getMessage())
+					);
+		}
+		return obtainToken(authRequest);
+	}
+	
+	protected String obtainToken(StringBuilder request) {
+		String token = null;
+		OIDCPrincipalJson principal;
+		Utils.checkState(checkServiceActiveIfInActive(), "Security service not active");
+		try {
+			RestClient restClient = getAuthClientBuilder().header("Content-Type", "application/x-www-form-urlencoded").json(false).build();
+			RestClient.Response response = restClient.post(request);
+			if (response.getStatus() == HttpURLConnection.HTTP_OK) {
+				updateConnectionTimeout(response);
+				principal = response.getData(OIDCPrincipalJson.class);
+			} else if (response.getStatus() == HttpURLConnection.HTTP_FORBIDDEN) {
+				throw new ForbiddenException(response.getError());
+			} else {
+				throw new RuntimeException(
+						Utils.format("Could not validate user token '{}', HTTP status '{}' message: {}", null,
+								response.getStatus(), response.getError()));
+			}
+		} catch (IOException ex) {
+			LOG.warn("Could not do user token validation, going inactive: {}", ex.toString());
+			serviceActive = false;
+			throw new RuntimeException(Utils.format("Could not connect to security service: {}", ex), ex);
+		}
+		if (principal != null)
+			token = principal.getTokenStr();
+		
+		return token;
+	}
+	
+	protected SSOPrincipal validateUserTokenWithSecurityService(String userAuthToken) throws ForbiddenException {
+		Utils.checkState(checkServiceActiveIfInActive(), "Security service not active");
+		StringBuilder tokenValidationRequest = new StringBuilder();
+		try {
+			if (clientId != null) {
+				tokenValidationRequest
+				.append(URLEncoder.encode("client_id", "UTF-8"))
+				.append("=")
+				.append(URLEncoder.encode(clientId, "UTF-8")).append("&");	
+				if (clientSecret != null) {
+					tokenValidationRequest
+					.append(URLEncoder.encode("client_secret", "UTF-8"))
+					.append("=")
+					.append(URLEncoder.encode(clientSecret, "UTF-8")).append("&");
+				}
+			}
+			tokenValidationRequest.append(URLEncoder.encode("token", "UTF-8"))
+				.append("=")
+				.append(URLEncoder.encode(userAuthToken, "UTF-8"));	
 		} catch (UnsupportedEncodingException e) {
 			throw new RuntimeException(
 					Utils.format("Could not encode user token '{}', message: {}", userAuthToken, e.getMessage())
@@ -254,7 +396,7 @@ public class OIDCService extends AbstractSSOService {
 		
 		OIDCPrincipalJson principal;
 		try {
-			RestClient restClient = getUserAuthClientBuilder().header("Content-Type", "application/x-www-form-urlencoded").build();
+			RestClient restClient = getTokenValidationClientBuilder().header("Content-Type", "application/x-www-form-urlencoded").json(false).build();
 			RestClient.Response response = restClient.post(tokenValidationRequest);
 			if (response.getStatus() == HttpURLConnection.HTTP_OK) {
 				updateConnectionTimeout(response);
@@ -281,59 +423,7 @@ public class OIDCService extends AbstractSSOService {
 
 	protected SSOPrincipal validateAppTokenWithSecurityService(String authToken, String componentId)
 			throws ForbiddenException {
-		  Utils.checkState(checkServiceActiveIfInActive(), "Security service not active");
-	    StringBuilder tokenValidationRequest = new StringBuilder();
-			try {
-				tokenValidationRequest.append(URLEncoder.encode("token", "UTF-8"))
-					.append("=")
-					.append(URLEncoder.encode(authToken, "UTF-8"));
-				if (componentId != null) {
-					tokenValidationRequest.append("&")
-					.append(URLEncoder.encode("client_id", "UTF-8"))
-					.append("=")
-					.append(URLEncoder.encode(componentId, "UTF-8"));	
-					if (clientSecret != null) {
-						tokenValidationRequest.append("&")
-						.append(URLEncoder.encode("client_secret", "UTF-8"))
-						.append("=")
-						.append(URLEncoder.encode(clientSecret, "UTF-8"));
-					}
-				}
-				
-			} catch (UnsupportedEncodingException e) {
-				throw new RuntimeException(
-						Utils.format("Could not encode app token '{}', message: {}", authToken, e.getMessage())
-						);
-			}
-			
-			OIDCPrincipalJson principal;
-	    try {
-				RestClient restClient = getAppAuthClientBuilder().header("Content-Type", "application/x-www-form-urlencoded").build();
-				RestClient.Response response = restClient.post(tokenValidationRequest);
-	      if (response.getStatus() == HttpURLConnection.HTTP_OK) {
-	        updateConnectionTimeout(response);
-					principal = response.getData(OIDCPrincipalJson.class);
-	      } else if (response.getStatus() == HttpURLConnection.HTTP_FORBIDDEN) {
-	        throw new ForbiddenException(response.getError());
-	      } else {
-	        throw new RuntimeException(Utils.format(
-	            "Could not validate app token for component ID '{}', HTTP status '{}' message: {}",
-	            componentId,
-	            response.getStatus(),
-	            response.getError()
-	        ));
-	      }
-	    } catch (IOException ex){
-	      LOG.warn("Could not do app token validation, going inactive: {}", ex.toString());
-	      serviceActive = false;
-	      throw new RuntimeException(Utils.format("Could not connect to security service: {}", ex), ex);
-	    }
-	    if (principal != null) {
-	      principal.setTokenStr(authToken);
-	      principal.lock();
-	      LOG.debug("Validated app auth token for '{}'", principal.getPrincipalId());
-	    }
-	    return principal;
+	    return validateUserTokenWithSecurityService(authToken);
 	}
 
 	@VisibleForTesting
