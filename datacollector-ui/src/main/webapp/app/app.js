@@ -289,9 +289,9 @@ angular.module('dataCollectorApp')
        * Logout header link command handler
        */
       logout: function() {
-        api.admin.logout($rootScope.common.authenticationType, $rootScope.common.isDPMEnabled)
+        api.admin.logout($rootScope.common.authenticationType, $rootScope.common.isDPMEnabled, $rootScope.common.isOIDCEnabled)
           .then(function() {
-            location.reload();
+            window.location = window.location.href.split("?")[0];
           });
       },
 
@@ -581,6 +581,7 @@ angular.module('dataCollectorApp')
 
         $rootScope.common.authenticationType = configuration.getAuthenticationType();
         $rootScope.common.isDPMEnabled = configuration.isDPMEnabled();
+        $rootScope.common.isOIDCEnabled = configuration.isOIDCEnabled();
         $rootScope.common.isACLEnabled = configuration.isACLEnabled();
         $rootScope.common.dpmBaseURL = configuration.getRemoteBaseUrl();
         $rootScope.common.isSlaveNode = configuration.isSlaveNode();

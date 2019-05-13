@@ -44,6 +44,7 @@ public class OIDCService extends AbstractSSOService {
 	public static final String OIDC_TOKEN_INTROSPECTION_URL_CONFIG = CONFIG_PREFIX + "tokenIntrospectionEndpoint";
 	public static final String OIDC_USER_INFO_URL_CONFIG = CONFIG_PREFIX + "userInfoEndpoint";
 	public static final String OIDC_END_SESSION_URL_CONFIG = CONFIG_PREFIX + "endSessionEndpoint";
+	public static final String OIDC_LOGOUT_CALLBACK_URL_CONFIG = CONFIG_PREFIX + "logoutCallbackUrl";
 
 	public static final String SECURITY_CLIENT_ID_CONFIG = CONFIG_PREFIX + "clientId";
 	public static final String SECURITY_CLIENT_SECRET_CONFIG = CONFIG_PREFIX + "clientSecret";
@@ -82,10 +83,19 @@ public class OIDCService extends AbstractSSOService {
 	public void setConfiguration(Configuration conf) {
 		super.setConfiguration(conf);
 		discoveryUrl = conf.get(OIDC_DISCOVERY_URL_CONFIG, null);
+		String redirectUri = "";
+		String encodedRedirectUri = "";
+		try {
+			redirectUri = conf.get(OIDC_LOGOUT_CALLBACK_URL_CONFIG, "");
+			encodedRedirectUri = URLEncoder.encode(redirectUri, "UTF-8");
+		} catch (UnsupportedEncodingException ex) {
+			LOG.warn("OIDC logout redirect encoding failed: {}", ex.toString());
+			ex.printStackTrace();
+		}
 		if (discoveryUrl == null || discoveryUrl.isEmpty()) {
 			LOG.debug("Discovery URL was NULL");
 			authorizationEndpoint = conf.get(OIDC_AUTHORIZATION_URL_CONFIG, null);
-			logoutEndpoint = conf.get(OIDC_END_SESSION_URL_CONFIG, null);
+			logoutEndpoint = conf.get(OIDC_END_SESSION_URL_CONFIG, null) + "?redirect_uri=" + encodedRedirectUri;
 			tokenEndpoint = conf.get(OIDC_TOKEN_URL_CONFIG, null);
 			tokenIntrospectionEndpoint = conf.get(OIDC_TOKEN_INTROSPECTION_URL_CONFIG, null);
 			userInfoEndpoint = conf.get(OIDC_USER_INFO_URL_CONFIG, null);
@@ -98,7 +108,7 @@ public class OIDCService extends AbstractSSOService {
 					updateConnectionTimeout(response);
 					DiscoveryJson discovery = response.getData(DiscoveryJson.class);
 					authorizationEndpoint = discovery.getAuthorizationEndpoint();
-					logoutEndpoint = discovery.getEndSessionEndpoint();
+					logoutEndpoint = discovery.getEndSessionEndpoint() + "?redirect_uri=" + encodedRedirectUri;
 					tokenEndpoint = discovery.getTokenEndpoint();
 					tokenIntrospectionEndpoint = discovery.getTokenIntrospectionEndpoint();
 					userInfoEndpoint = discovery.getUserinfoEndpoint();

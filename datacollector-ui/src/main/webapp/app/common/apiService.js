@@ -248,10 +248,12 @@ angular.module('dataCollectorApp.common')
       /**
        * logout
        */
-      logout: function(authenticationType, isDPMEnabled) {
+      logout: function(authenticationType, isDPMEnabled, isOIDCEnabled) {
         var url;
-        if (isDPMEnabled) {
-          url = 'logout';
+        if (isOIDCEnabled) {
+          window.location.href = window.location.href.split("?")[0]+"logout";
+        } else if (isDPMEnabled) {
+          url = '/logout';
           return $http({
             method: 'GET',
             url: url

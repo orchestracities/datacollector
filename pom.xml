@@ -160,7 +160,7 @@
     <module>hive-protolib</module>
 
     <module>dir-spooler-protolib</module>
-
+<!--
     <module>sdc-kafka-api</module>
     <module>sdc-kafka_0_8</module>
     <module>sdc-kafka_0_9-common</module>
@@ -186,7 +186,7 @@
     <module>groovy-protolib</module>
     <module>kinetica-protolib</module>
     <module>couchbase-protolib</module>
-
+-->
     <module>elasticsearch-protolib</module>
 
     <module>solr-protolib</module>
@@ -554,7 +554,7 @@
              IMPORTANT: keep this in alphabetical order
 
              IMPORTANT: the modules for all stage libraries
-        -->
+
         <module>apache-kafka_0_8_1-lib</module>
         <module>apache-kafka_0_8_2-lib</module>
         <module>apache-kafka_0_9-lib</module>
@@ -630,7 +630,7 @@
         <module>mapr_6_1-mep6-lib</module>
         <module>mapr_spark_2_1_mep_3_0-lib</module>
         <module>mongodb_3-lib</module>
-        <module>databricks-ml_2-lib</module>
+        <module>databricks-ml_2-lib</module>        -->
       </modules>
     </profile>
 
@@ -685,7 +685,7 @@
              IMPORTANT: keep this in alphabetical order
 
              IMPORTANT: the modules for the sample dev stage libraries
-        -->
+
         <module>apache-kafka_2_0-lib</module>
         <module>apache-kudu_1_7-lib</module>
         <module>apache-pulsar_2-lib</module>
@@ -711,7 +711,7 @@
         <module>mapr_6_1-mep6-lib</module>
         <module>mapr_spark_2_1_mep_3_0-lib</module>
         <module>mongodb_3-lib</module>
-        <module>databricks-ml_2-lib</module>
+        <module>databricks-ml_2-lib</module>        -->
       </modules>
     </profile>
 
